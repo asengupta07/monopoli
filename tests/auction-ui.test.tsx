@@ -38,6 +38,7 @@ function stateWith(auction: PendingAuction): RoomState {
     chat: [],
     trades: [],
     composing: [],
+    voteKick: null,
   };
 }
 

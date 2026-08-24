@@ -32,6 +32,8 @@ export interface GameActions {
   proposeTrade: (input: TradeInput) => void;
   respondTrade: (tradeId: string, action: TradeResponse) => void;
   setTradeDrafting: (drafting: boolean) => void;
+  startVotekick: (targetId: string) => void;
+  castVotekick: () => void;
   chat: (text: string) => void;
   leave: () => void;
   dismissError: () => void;
@@ -178,6 +180,8 @@ export function useGameSocket(roomId: string, opts?: { lab?: boolean }) {
     proposeTrade: (input) => { rawSend({ type: C2S.PROPOSE_TRADE, ...input }); },
     respondTrade: (tradeId, action) => { rawSend({ type: C2S.RESPOND_TRADE, tradeId, action }); },
     setTradeDrafting: (drafting) => { rawSend({ type: C2S.TRADE_DRAFT, drafting }); },
+    startVotekick: (targetId) => { rawSend({ type: C2S.START_VOTEKICK, targetId }); },
+    castVotekick: () => { rawSend({ type: C2S.CAST_VOTEKICK }); },
     chat: (text) => { rawSend({ type: C2S.CHAT, text }); },
     sandbox: (cmd) => { rawSend({ type: C2S.SANDBOX, ...cmd }); },
     leave: () => {

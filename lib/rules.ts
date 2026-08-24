@@ -25,6 +25,15 @@ export const MAX_PLAYER_OPTIONS = [2, 3, 4, 5, 6, 8, 10, 12];
 export const AUCTION_WINDOW_MS = 10_000;
 
 /**
+ * How long a vote-kick stays open once the first vote comes in. It resolves
+ * early the moment every other seated player has voted; otherwise the target
+ * is removed when this runs out regardless of how many votes came in — the
+ * clock is there so one AFK player can't be stuck around forever just because
+ * the table never reaches unanimity.
+ */
+export const VOTEKICK_WINDOW_MS = 4 * 60_000;
+
+/**
  * Rent tables. The engine computes rent from these, and the property card
  * displays them, so what a player is shown is what they will actually pay.
  */

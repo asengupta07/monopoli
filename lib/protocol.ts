@@ -34,6 +34,8 @@ export const C2S = {
   PROPOSE_TRADE: 'proposeTrade',
   RESPOND_TRADE: 'respondTrade',
   TRADE_DRAFT: 'tradeDraft',
+  START_VOTEKICK: 'startVotekick',
+  CAST_VOTEKICK: 'castVotekick',
   CHAT: 'chat',
   LEAVE: 'leave',
   PING: 'ping',
@@ -97,6 +99,8 @@ export type ClientMessage =
   | ({ type: typeof C2S.PROPOSE_TRADE } & TradeInput)
   | { type: typeof C2S.RESPOND_TRADE; tradeId: string; action: TradeResponse }
   | { type: typeof C2S.TRADE_DRAFT; drafting: boolean }
+  | { type: typeof C2S.START_VOTEKICK; targetId: string }
+  | { type: typeof C2S.CAST_VOTEKICK }
   | { type: typeof C2S.CHAT; text: string }
   | { type: typeof C2S.LEAVE }
   | { type: typeof C2S.PING };

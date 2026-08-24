@@ -29,11 +29,13 @@ function fromDoc(doc: RoomDoc): Room {
   // Sockets are gone after a restart; nobody is connected until they rejoin.
   const players = rest.players.map((p) => ({ ...p, connected: false }));
   // rooms stored before chat/trades existed come back without them; "drafting a
-  // trade" is live presence tied to an open socket, so a restart always clears it
+  // trade" and an in-flight vote-kick are both live, socket-tied state, so a
+  // restart always clears them rather than resuming a clock against a player
+  // set that may no longer match
   return {
     ...rest, players,
     chat: rest.chat ?? [], log: rest.log ?? [], trades: rest.trades ?? [],
-    composing: [],
+    composing: [], voteKick: null,
     stats: rest.stats ?? emptyStats(), id: _id,
   };
 }

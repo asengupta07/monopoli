@@ -145,6 +145,22 @@ export interface PendingAuction {
 export type Pending = PendingBuy | PendingAuction;
 
 /**
+ * A vote to remove a player, typically one who's gone AFK. Resolves the
+ * moment every other alive player has voted, or when the clock runs out —
+ * whichever comes first — so nobody can hold the table hostage by never
+ * responding.
+ */
+export interface VoteKick {
+  targetId: string;
+  starterId: string;
+  /** Ids of players who have voted to kick, starter included. */
+  votes: string[];
+  endsAt: number;
+  /** Filled in per snapshot, like PendingAuction.endsIn. */
+  endsIn?: number;
+}
+
+/**
  * A two-sided offer between two seated players: properties and/or cash, each
  * way. Only ever pending — accepting, declining or cancelling removes it from
  * `Room.trades` outright, so there is no status field to go stale.
@@ -202,6 +218,7 @@ export interface Room {
   trades: TradeOffer[];
   /** Ids of players with the "create a trade" modal open right now — presence only, not persisted meaningfully. */
   composing: string[];
+  voteKick: VoteKick | null;
   winner: string | null;
   createdAt: number;
   emptySince?: number | null;
@@ -228,6 +245,7 @@ export interface RoomState {
   chat: ChatMessage[];
   trades: TradeOffer[];
   composing: string[];
+  voteKick: VoteKick | null;
   sandbox?: boolean;
   stats?: GameStats;
 }

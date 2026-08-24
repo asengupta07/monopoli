@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MessageSquare, HelpCircle, Volume2, Check, Copy } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 
 interface Props {
   roomId: string;
@@ -38,12 +38,6 @@ export default function BottomBar({ roomId, centre, showShare }: Props) {
       ) : (
         <div className="turn-status">{centre}</div>
       )}
-
-      <div className="footer-icons">
-        <button className="icon-btn" aria-label="Chat"><MessageSquare size={15} /></button>
-        <button className="icon-btn" aria-label="Help"><HelpCircle size={15} /></button>
-        <button className="icon-btn" aria-label="Sound"><Volume2 size={15} /></button>
-      </div>
     </div>
   );
 }

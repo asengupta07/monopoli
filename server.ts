@@ -41,6 +41,9 @@ import {
   respondTrade,
   setTradeDrafting,
   clearDrafting,
+  startVoteKick,
+  castVoteKick,
+  expireVoteKick,
   sendChat,
   serialize,
 } from './lib/gameEngine';
@@ -101,6 +104,30 @@ function scheduleAuctionDeadline(wss: WebSocketServer, roomId: string): void {
   auctionTimers.set(roomId, timer);
 }
 
+/** One pending vote-kick deadline per room — same split as auctions above. */
+const voteKickTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleVoteKickDeadline(wss: WebSocketServer, roomId: string): void {
+  const existing = voteKickTimers.get(roomId);
+  if (existing) {
+    clearTimeout(existing);
+    voteKickTimers.delete(roomId);
+  }
+
+  const vote = getRoom(roomId)?.voteKick;
+  if (!vote) return;
+
+  const delay = Math.max(0, vote.endsAt - Date.now()) + 25;
+  const timer = setTimeout(() => {
+    voteKickTimers.delete(roomId);
+    const room = getRoom(roomId);
+    if (!room) return;
+    if (expireVoteKick(room)) broadcast(wss, roomId);
+  }, delay);
+
+  voteKickTimers.set(roomId, timer);
+}
+
 function broadcast(wss: WebSocketServer, roomId: string): void {
   const room = getRoom(roomId);
   if (!room) return;
@@ -112,6 +139,7 @@ function broadcast(wss: WebSocketServer, roomId: string): void {
     }
   }
   scheduleAuctionDeadline(wss, roomId);
+  scheduleVoteKickDeadline(wss, roomId);
 }
 
 /** Engine calls share one shape: run, surface the error, otherwise rebroadcast. */
@@ -225,6 +253,10 @@ async function handleMessage(ws: WebSocket, wss: WebSocketServer, raw: string): 
       return apply(ws, wss, roomId, () => respondTrade(room, playerId, msg.tradeId, msg.action));
     case C2S.TRADE_DRAFT:
       return apply(ws, wss, roomId, () => setTradeDrafting(room, playerId, msg.drafting));
+    case C2S.START_VOTEKICK:
+      return apply(ws, wss, roomId, () => startVoteKick(room, playerId, msg.targetId));
+    case C2S.CAST_VOTEKICK:
+      return apply(ws, wss, roomId, () => castVoteKick(room, playerId));
     case C2S.CHAT:
       return apply(ws, wss, roomId, () => sendChat(room, playerId, msg.text));
     case C2S.SANDBOX: {
@@ -341,6 +373,8 @@ app.prepare().then(() => {
     clearInterval(heartbeat);
     for (const timer of auctionTimers.values()) clearTimeout(timer);
     auctionTimers.clear();
+    for (const timer of voteKickTimers.values()) clearTimeout(timer);
+    voteKickTimers.clear();
     for (const client of wss.clients) client.close(1012, 'Server restarting');
     await flushAll();
     server.close(() => process.exit(0));

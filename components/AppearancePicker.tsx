@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight, Check, Gem } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import { PLAYER_COLORS } from '@/lib/rules';
 
 interface Props {
@@ -53,7 +53,6 @@ export default function AppearancePicker({ takenColors, defaultName, onJoin, dis
       <button className="join-btn" disabled={disabled} onClick={() => onJoin(name, chosen)}>
         Join game <ArrowRight size={16} />
       </button>
-      <button className="ghost-btn"><Gem size={13} /> Get more appearances</button>
     </div>
   );
 }

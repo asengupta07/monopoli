@@ -16,6 +16,7 @@ import {
   MORTGAGE_RATE_OPTIONS,
   MORTGAGE_INTEREST_OPTIONS,
   AUCTION_WINDOW_MS,
+  VOTEKICK_WINDOW_MS,
   AIRPORT_RENTS,
   UTILITY_MULTIPLIERS,
   HOTEL_LEVEL,
@@ -56,6 +57,7 @@ export {
   MORTGAGE_RATE_OPTIONS,
   MORTGAGE_INTEREST_OPTIONS,
   AUCTION_WINDOW_MS,
+  VOTEKICK_WINDOW_MS,
   MAX_HOUSES,
   HOTEL_LEVEL,
   houseCost,
@@ -110,6 +112,7 @@ export function createRoom(existingIds: Set<string>, forcedId?: string): Room {
     chat: [],
     trades: [],
     composing: [],
+    voteKick: null,
     winner: null,
     createdAt: Date.now(),
     emptySince: null,
@@ -210,6 +213,7 @@ export function bankrupt(room: Room, player: Player): void {
   }
   releaseTrades(room, player.id);
   clearDrafting(room, player.id);
+  releaseVoteKick(room, player.id);
   const stats = ensureStats(room);
   if (stats.outAt[player.id] === undefined) stats.outAt[player.id] = stats.turns;
   pushLog(room, `${player.name} went bankrupt`, 'bad');
@@ -236,6 +240,11 @@ export function setTradeDrafting(room: Room, playerId: string, drafting: boolean
     clearDrafting(room, playerId);
   }
   return {};
+}
+
+/** The target left, went bankrupt, or otherwise stopped being kickable — the vote no longer applies. */
+function releaseVoteKick(room: Room, playerId: string): void {
+  if (room.voteKick?.targetId === playerId) room.voteKick = null;
 }
 
 /**
@@ -319,6 +328,7 @@ export function removePlayer(room: Room, playerId: string): void {
   }
   releaseTrades(room, playerId);
   clearDrafting(room, playerId);
+  releaseVoteKick(room, playerId);
 
   if (room.phase === 'playing') {
     const orderIdx = room.order.indexOf(playerId);
@@ -1050,6 +1060,75 @@ export function respondTrade(room: Room, playerId: string, tradeId: string, acti
   return {};
 }
 
+/* ------------------------------------------------------------------ */
+/* vote-kick                                                           */
+/* ------------------------------------------------------------------ */
+
+function eligibleVoters(room: Room, targetId: string): Player[] {
+  return room.players.filter((p) => p.alive && p.id !== targetId);
+}
+
+/** Remove the target once every eligible voter is in, or `forced` (the clock ran out). */
+function resolveVoteKick(room: Room, forced: boolean): void {
+  const vote = room.voteKick;
+  if (!vote) return;
+  const eligible = eligibleVoters(room, vote.targetId);
+  const unanimous = eligible.length > 0 && eligible.every((p) => vote.votes.includes(p.id));
+  if (!unanimous && !forced) return;
+
+  const target = getPlayer(room, vote.targetId);
+  room.voteKick = null;
+  if (!target) return;
+  pushLog(room, `${target.name} was voted off the table`, 'bad');
+  removePlayer(room, target.id);
+}
+
+export function startVoteKick(room: Room, playerId: string, targetId: string): EngineResult {
+  if (room.phase === 'ended') return { error: 'The game is already over' };
+  if (room.voteKick) return { error: 'A vote to kick someone is already in progress' };
+  const starter = getPlayer(room, playerId);
+  if (!starter || !starter.alive) return { error: 'You are out of the game' };
+  if (targetId === playerId) return { error: 'You cannot vote to kick yourself' };
+  const target = getPlayer(room, targetId);
+  if (!target || !target.alive) return { error: 'No such player' };
+
+  room.voteKick = {
+    targetId,
+    starterId: playerId,
+    votes: [playerId],
+    endsAt: Date.now() + VOTEKICK_WINDOW_MS,
+  };
+  pushLog(room, `${starter.name} started a vote to kick ${target.name}`, 'info');
+  resolveVoteKick(room, false); // covers a two-player table: the starter alone is already unanimous
+  return {};
+}
+
+export function castVoteKick(room: Room, playerId: string): EngineResult {
+  const vote = room.voteKick;
+  if (!vote) return { error: 'No vote is in progress' };
+  if (playerId === vote.targetId) return { error: 'You cannot vote on your own kick' };
+  const player = getPlayer(room, playerId);
+  if (!player || !player.alive) return { error: 'You are out of the game' };
+  if (vote.votes.includes(playerId)) return { error: 'You already voted' };
+
+  vote.votes.push(playerId);
+  pushLog(room, `${player.name} voted to kick`, 'info');
+  resolveVoteKick(room, false);
+  return {};
+}
+
+/**
+ * Force through a vote whose clock ran out, whatever the tally says. The
+ * server owns the scheduling, same split as `expireAuction` — the engine
+ * stays free of timers.
+ */
+export function expireVoteKick(room: Room, now: number = Date.now()): boolean {
+  const vote = room.voteKick;
+  if (!vote || now < vote.endsAt) return false;
+  resolveVoteKick(room, true);
+  return true;
+}
+
 export function endTurn(room: Room, playerId: string): EngineResult {
   if (room.phase !== 'playing') return { error: 'Game is not running' };
   if (currentPlayerId(room) !== playerId) return { error: 'Not your turn' };
@@ -1085,6 +1164,7 @@ export function rematch(room: Room, playerId: string): EngineResult {
   room.log = [];
   room.trades = [];
   room.composing = [];
+  room.voteKick = null;
   room.winner = null;
   room.stats = emptyStats();
   for (const player of room.players) {
@@ -1150,6 +1230,9 @@ export function serialize(room: Room): RoomState {
     chat: room.chat,
     trades: room.trades ?? [],
     composing: room.composing ?? [],
+    voteKick: room.voteKick
+      ? { ...room.voteKick, endsIn: Math.max(0, room.voteKick.endsAt - Date.now()) }
+      : null,
     sandbox: room.sandbox,
     stats: room.stats ?? emptyStats(),
   };

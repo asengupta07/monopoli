@@ -39,6 +39,7 @@ function endedState(): RoomState {
     chat: [],
     trades: [],
     composing: [],
+    voteKick: null,
     stats,
   };
 }

@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Dices, Users, KeyRound, ArrowRight, FlaskConical } from 'lucide-react';
 import { makeRoomCode } from '@/lib/protocol';
-import TopBar from '@/components/TopBar';
 
 export default function HomePage() {
   const router = useRouter();
@@ -18,7 +17,6 @@ export default function HomePage() {
 
   return (
     <div className="screen">
-      <TopBar />
       <div className="home">
         <div className="home-aurora" aria-hidden="true" />
         <div className="home-grid" aria-hidden="true" />

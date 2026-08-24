@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Crown, Lock, WifiOff, Flag, Plus, KeyRound, PanelRightClose, PanelRightOpen, ArrowRight, Pencil,
+  UserX,
 } from 'lucide-react';
 import { TILES, swatchColor } from '@/lib/board';
 import { HOTEL_LEVEL, cityRent, rentWithHouses } from '@/lib/rules';
@@ -29,6 +30,26 @@ function calcRentPreview(tile: Tile, level: number, mortgaged?: boolean): number
   return 0;
 }
 
+/**
+ * Counts down from the milliseconds the server reported, not from a shared
+ * wall clock — same trick as the auction clock. Remounted by its `key` (the
+ * deadline) whenever the vote is a fresh one.
+ */
+function VoteKickClock({ endsIn }: { endsIn: number }) {
+  const [left, setLeft] = useState(endsIn);
+
+  useEffect(() => {
+    const startedAt = Date.now();
+    const tick = setInterval(() => setLeft(Math.max(0, endsIn - (Date.now() - startedAt))), 250);
+    return () => clearInterval(tick);
+  }, [endsIn]);
+
+  const totalSeconds = Math.ceil(left / 1000);
+  const mm = Math.floor(totalSeconds / 60);
+  const ss = String(totalSeconds % 60).padStart(2, '0');
+  return <span className="votekick-clock">{mm}:{ss}</span>;
+}
+
 export default function Sidebar({ state, me, actions, onViewStats, onHoverPlayer }: Props) {
   const [open, setOpen] = useState(true);
   const [tradeOpen, setTradeOpen] = useState(false);
@@ -48,6 +69,9 @@ export default function Sidebar({ state, me, actions, onViewStats, onHoverPlayer
     .filter((p): p is Player => Boolean(p));
   const viewTrade: TradeOffer | undefined = myTrades.find((t) => t.id === viewTradeId);
   const otherPlayers = me ? state.players.filter((p) => p.id !== me.id && p.alive) : [];
+
+  const vote = state.voteKick;
+  const voteEligible = vote ? state.players.filter((p) => p.alive && p.id !== vote.targetId).length : 0;
 
   if (!open) {
     return (
@@ -90,6 +114,37 @@ export default function Sidebar({ state, me, actions, onViewStats, onHoverPlayer
               <span className="chip-badge" title="In prison"><Lock size={11} /></span>
             )}
             {!inLobby && <div className="player-money">${player.cash}</div>}
+
+            {state.phase !== 'ended' && vote?.targetId === player.id && (
+              player.id === me?.id ? (
+                // The target can't vote on their own kick, but they should still see it coming.
+                <span className="votekick-btn readonly">
+                  <UserX size={12} />
+                  {vote.votes.length}/{voteEligible}
+                  <VoteKickClock key={vote.endsAt} endsIn={vote.endsIn ?? 0} />
+                </span>
+              ) : (
+                <button
+                  className={`votekick-btn${me && vote.votes.includes(me.id) ? ' voted' : ''}`}
+                  disabled={!me || vote.votes.includes(me.id)}
+                  onClick={() => actions.castVotekick()}
+                  title={me && vote.votes.includes(me.id) ? 'You voted to kick' : `Vote to kick ${player.name}`}
+                >
+                  <UserX size={12} />
+                  {vote.votes.length}/{voteEligible}
+                  <VoteKickClock key={vote.endsAt} endsIn={vote.endsIn ?? 0} />
+                </button>
+              )
+            )}
+            {me && player.id !== me.id && player.alive && state.phase !== 'ended' && !vote && (
+              <button
+                className="votekick-btn ghost"
+                onClick={() => actions.startVotekick(player.id)}
+                title={`Vote to kick ${player.name} — taking too long?`}
+              >
+                <UserX size={12} />
+              </button>
+            )}
           </div>
         ))}
       </div>
