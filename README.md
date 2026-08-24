@@ -184,6 +184,20 @@ everywhere, never hardcoded: **sell back rate** (what the bank pays for a
 property or building), **mortgage rate** (what mortgaging raises) and **mortgage
 interest** (added when paying one off).
 
+### Trading
+
+Any two seated players can propose a trade at any time — it isn't tied to
+whose turn it is. An offer bundles properties and/or cash going each way; only
+unmortgaged, house-free properties can be put on the table, since a house mid-trade
+has no clean owner to attribute it to.
+
+The recipient can **accept** (the engine re-validates ownership and cash right
+then, since either can have moved since the offer went out — a trade that's
+gone stale fails cleanly instead of executing), **decline**, or **negotiate**,
+which withdraws the offer and reopens the composer with the terms flipped so
+they can send back a counter. The sender can **withdraw** a pending offer.
+Trades are cleared out from under a player who goes bankrupt or leaves.
+
 ## Implemented rules
 
 Turn order (randomised or join order), configurable starting cash, movement,
@@ -191,10 +205,9 @@ START bonus, rent (cities, airports by count owned, utilities by dice), the x2
 full-set rule, taxes, treasure and surprise cards, prison (doubles to escape,
 three strikes, $50 release), three-doubles jail, property purchase, a pass-around
 open auctions, mortgaging at 50% with 10% interest to lift (and
-no rent while mortgaged), the vacation cash pot, bankruptcy, and win detection.
-
-**Not implemented:** trading between players. The Trades panel says so rather
-than pretending.
+no rent while mortgaged), the vacation cash pot, bankruptcy, win detection, and
+trading between players — propose properties and/or cash either way, the other
+side accepts, declines, or negotiates a counter-offer.
 
 ## Reference
 
